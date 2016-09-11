@@ -7,6 +7,12 @@
 //
 //////////////////////////////////////////////
 
+// extern "C"
+// {
+//   #include "avr_i2c.h"
+// }
+// #include <mpu9250.h>
+
 // defines for easy driver stepper motor controller
 #define DIR_PIN 3
 #define STEP_PIN 2
@@ -14,16 +20,22 @@
 #define SPEED  0.1             //from 0 to 1  slower gives more torque
 #define STEPS_PER_ROT 200        //200 is std, 1600 is microstepping
 
-// defines for MPU9250 breakout
+// defines for MPU9250 breakout, these are part of the MPU9250 library as well
+// here for reference hookup only
 #define CLK_PIN 13
-#define SPI_PIN 12
+#define SDO_PIN 12 
+#define SDI_PIN 11
+#define NSC_PIN 10
+
 
 // other defines
-#define LED_PIN 11
+#define LED_PIN 9
 
 // delay parameters
 #define SEC_WAIT 0.02
 int waitTimePerCycle = int(SEC_WAIT*1000.0);
+
+//MPU_9250 myIMU;
 
 double angratex = 0;
 double angratey = 0;
@@ -48,6 +60,10 @@ void setup()
   digitalWrite(STEP_PIN, LOW);
   digitalWrite(LED_PIN, LOW);
   digitalWrite(ENABLE_PIN, LOW); // LOW is enabled
+
+  //  struct int_param_s int_param;
+  //  myIMU.begin(in_param);
+  //  myIMU.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL);
 
   Serial.begin(57600);
  }
