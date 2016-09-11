@@ -42,6 +42,7 @@ class DataGen(object):
     """
     def __init__(self, init=50):
         self.data = self.init = init
+        self.ser = serial.Serial('/dev/ttyUSB0', 57600)
         
     def next(self):
         self._recalc_data()
@@ -49,16 +50,10 @@ class DataGen(object):
     
     def _recalc_data(self):
         delta = random.uniform(-0.5, 0.5)
-        r = random.random()
-
-        if r > 0.9:
-            self.data += delta * 15
-        elif r > 0.8: 
-            # attraction to the initial value
-            delta += (0.5 if self.init > self.data else -0.5)
-            self.data += delta
-        else:
-            self.data += delta
+        data = self.ser.readline()
+        a = data.split(',');
+        print a
+        self.data = float(a[1])
 
 
 class BoundControlBox(wx.Panel):
@@ -326,11 +321,6 @@ class GraphFrame(wx.Frame):
     def on_flash_status_off(self, event):
         self.statusbar.SetStatusText('')
         
-def main():
-    ser = serial.Serial('/dev/tty.usbserial', 9600)
-    while True:
-        print ser.readline()
-
 if __name__ == "__main__":
     app = wx.PySimpleApp()
     app.frame = GraphFrame()
