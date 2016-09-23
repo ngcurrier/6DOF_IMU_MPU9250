@@ -7,11 +7,11 @@
 //
 //////////////////////////////////////////////
 
-// extern "C"
-// {
-//   #include "avr_i2c.h"
-// }
-// #include <mpu9250.h>
+ extern "C"
+ {
+   #include "../TPLs/SparkFunMPU9250BreakoutArduinoLibrary/src/avr_i2c.h"
+ }
+ #include "../TPLs/SparkFunMPU9250BreakoutArduinoLibrary/src/mpu9250.h"
 
 // defines for easy driver stepper motor controller
 #define DIR_PIN 3
@@ -35,7 +35,7 @@
 #define SEC_WAIT 0.02
 int waitTimePerCycle = int(SEC_WAIT*1000.0);
 
-//MPU_9250 myIMU;
+MPU_9250 myIMU;
 
 double angratex = 0;
 double angratey = 0;
@@ -49,6 +49,10 @@ double accz = 0;
 
 double angStep = 400.0;
 
+void rotate(int steps, float speed);
+void rotateDeg(float deg, float speed);
+
+
 void setup()
 {
   pinMode(DIR_PIN, OUTPUT);
@@ -61,9 +65,9 @@ void setup()
   digitalWrite(LED_PIN, LOW);
   digitalWrite(ENABLE_PIN, LOW); // LOW is enabled
 
-  //  struct int_param_s int_param;
-  //  myIMU.begin(in_param);
-  //  myIMU.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL);
+  struct int_param_s int_param;
+  myIMU.begin(int_param);
+  myIMU.setSensors(INV_XYZ_GYRO | INV_XYZ_ACCEL);
 
   Serial.begin(57600);
  }
@@ -98,7 +102,14 @@ void loop()
   delay(waitTimePerCycle);
   digitalWrite(LED_PIN, LOW);
   delay(waitTimePerCycle);
+
+  long temperature = 0;
+  unsigned long timestamp = 0;
+  myIMU.get_temperature(temperature, timestamp);
+  Serial.print("Temperature (˚C): ");
+  Serial.println(temperature/65536.0F);
 }
+
 
 //rotate a specific number of microsteps (8 microsteps per step) - (negitive for reverse movement)
 //speed is any number from .01 -> 1 with 1 being fastest - Slower is stronger
