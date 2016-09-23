@@ -9,9 +9,9 @@
 
  extern "C"
  {
-   #include "../TPLs/SparkFunMPU9250BreakoutArduinoLibrary/src/avr_i2c.h"
+   #include "avr_i2c.h"
  }
- #include "../TPLs/SparkFunMPU9250BreakoutArduinoLibrary/src/mpu9250.h"
+ #include "mpu9250.h"
 
 // defines for easy driver stepper motor controller
 #define DIR_PIN 3
@@ -107,7 +107,7 @@ void loop()
   unsigned long timestamp = 0;
   myIMU.get_temperature(temperature, timestamp);
   Serial.print("Temperature (˚C): ");
-  Serial.println(temperature/65536.0F);
+  Serial.print(float(temperature/65536.0));
 }
 
 
