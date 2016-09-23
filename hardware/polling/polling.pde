@@ -27,6 +27,12 @@
 #define NSC_PIN 10
 #define INT_PIN 12
 
+// ARDUINO ---> MPU9250  HOOKUP GUIDE
+//-----------------------------------
+// pin A5  ---> SCL
+// pin A4  ---> SDA
+// pin 12  ---> Interrupt
+
 #define AHRS true         // Set to false for basic data read
 #define SerialDebug true  // Set to true to get Serial output for debugging
 
@@ -34,26 +40,17 @@
 #define LED_PIN 9
 
 // delay parameters
-#define SEC_WAIT 0.02
+#define SEC_WAIT 0.0
 int waitTimePerCycle = int(SEC_WAIT*1000.0);
 
 MPU9250 myIMU;
-
-double angratex = 0;
-double angratey = 0;
-double angratez = 0;
-double angx = 0;
-double angy = 0;
-double angz = 0;
-double accx = 0;
-double accy = 0;
-double accz = 0;
 
 double angStep = 400.0;
 
 void rotate(int steps, float speed);
 void rotateDeg(float deg, float speed);
 
+float angx = 0.0;
 
 void setup()
 {
@@ -73,7 +70,7 @@ void setup()
   digitalWrite(LED_PIN, LOW);
   digitalWrite(ENABLE_PIN, LOW); // LOW is enabled
 
-  Serial.begin(57600);
+  Serial.begin(1000000);
   Serial.print("Trying byte ");
   Serial.print("I should be on ");
   Serial.print(0x71, HEX);
@@ -86,7 +83,6 @@ void setup()
   Serial.print(" I should be ");
   Serial.println(0x71, HEX);
   digitalWrite(LED_PIN, LOW);
-  c = 0x71;
   if (c == 0x71){
     Serial.println("MPU9250 is online...");
     
@@ -189,28 +185,35 @@ void loop()
 
   myIMU.updateTime();
 
-  angratex = myIMU.mx;
-  
   //dump the data to the serial bus
   Serial.print(millis()/1000.0);
   Serial.print(',');
-  Serial.print(angratex);
+  // --- gyros
+  Serial.print(myIMU.gx);
   Serial.print(',');
-  Serial.print(angratey);
+  Serial.print(myIMU.gy);
   Serial.print(',');
-  Serial.print(angratez);
+  Serial.print(myIMU.gz);
+  Serial.print(','); 
+  // --- accelerometers
+  Serial.print(myIMU.ax);
   Serial.print(',');
-  Serial.print(accx);
+  Serial.print(myIMU.ay);
   Serial.print(',');
-  Serial.print(accy);
+  Serial.print(myIMU.az);
   Serial.print(',');
-  Serial.print(accz);
+  // --- magnemometers
+  //Serial.print(myIMU.mx);
+  //Serial.print(',');
+  //Serial.print(myIMU.my);
+  //Serial.print(',');
+  //Serial.print(myIMU.mz);
   Serial.print('\n');
 
+  angStep = myIMU.gx;
   angx = angx + angStep;
   double fulldeg = int(angx/360.0)*360.0;
   angx = angx - fulldeg;
-  angratex = angx;
 
   rotateDeg(angStep, SPEED);
 

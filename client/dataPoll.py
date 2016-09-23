@@ -42,7 +42,7 @@ class DataGen(object):
     """
     def __init__(self, init=50):
         self.data = self.init = init
-        self.ser = serial.Serial('/dev/ttyUSB0', 57600)
+        self.ser = serial.Serial('/dev/ttyUSB1', 1000000)
         
     def next(self):
         self._recalc_data()
@@ -52,7 +52,7 @@ class DataGen(object):
         delta = random.uniform(-0.5, 0.5)
         data = self.ser.readline()
         a = data.split(',');
-        print a
+        #print a
         self.data = float(a[1])
 
 
@@ -122,7 +122,7 @@ class GraphFrame(wx.Frame):
         
         self.redraw_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_redraw_timer, self.redraw_timer)        
-        self.redraw_timer.Start(100)
+        self.redraw_timer.Start(5)
 
     def create_menu(self):
         self.menubar = wx.MenuBar()
@@ -195,7 +195,7 @@ class GraphFrame(wx.Frame):
 
         self.axes = self.fig.add_subplot(111)
         self.axes.set_axis_bgcolor('black')
-        self.axes.set_title('Very important random data', size=12)
+        self.axes.set_title('Data received', size=12)
         
         pylab.setp(self.axes.get_xticklabels(), fontsize=8)
         pylab.setp(self.axes.get_yticklabels(), fontsize=8)
