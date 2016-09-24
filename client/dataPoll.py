@@ -22,6 +22,8 @@ import pprint
 import random
 import sys
 import wx
+import time
+from threading import Thread
 
 # The recommended way to use wx with mpl is with the WXAgg
 # backend. 
@@ -34,26 +36,6 @@ from matplotlib.backends.backend_wxagg import \
     NavigationToolbar2WxAgg as NavigationToolbar
 import numpy as np
 import pylab
-
-
-class DataGen(object):
-    """ A silly class that generates pseudo-random data for
-        display in the plot.
-    """
-    def __init__(self, init=50):
-        self.data = self.init = init
-        self.ser = serial.Serial('/dev/ttyUSB1', 1000000)
-        
-    def next(self):
-        self._recalc_data()
-        return self.data
-    
-    def _recalc_data(self):
-        delta = random.uniform(-0.5, 0.5)
-        data = self.ser.readline()
-        a = data.split(',');
-        #print a
-        self.data = float(a[1])
 
 
 class BoundControlBox(wx.Panel):
@@ -111,9 +93,10 @@ class GraphFrame(wx.Frame):
     
     def __init__(self):
         wx.Frame.__init__(self, None, -1, self.title)
-        
-        self.datagen = DataGen()
-        self.data = [self.datagen.next()]
+
+        self.dataStore = []
+        self.plotdata = []
+        self.plotdata.append(0)
         self.paused = False
         
         self.create_menu()
@@ -122,7 +105,25 @@ class GraphFrame(wx.Frame):
         
         self.redraw_timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.on_redraw_timer, self.redraw_timer)        
-        self.redraw_timer.Start(5)
+        self.redraw_timer.Start(50)
+        self.readThread = Thread(target = GraphFrame.dataRead, args = (self, self.dataStore))
+        self.readThread.start()
+
+    def dataRead(self, dataToReadTo):
+        self.ser = serial.Serial('/dev/ttyUSB0', 1000000)
+        print 'running thread'
+
+        # clear the serial buffer if we didn't connect immediately
+        for i in range(0,20):
+            self.ser.readline()
+        
+        idx = 0
+        while(1):
+            dataRead = self.ser.readline().strip().split(',')
+            self.numDatas = len(dataRead)
+            self.dataStore.append(dataRead)
+            lastDrawTime = time.time()*1000.0
+            idx = idx + 1
 
     def create_menu(self):
         self.menubar = wx.MenuBar()
@@ -204,7 +205,7 @@ class GraphFrame(wx.Frame):
         # to the plotted line series
         #
         self.plot_data = self.axes.plot(
-            self.data, 
+            self.plotdata, 
             linewidth=1,
             color=(1, 1, 0),
             )[0]
@@ -217,7 +218,7 @@ class GraphFrame(wx.Frame):
         # xmax.
         #
         if self.xmax_control.is_auto():
-            xmax = len(self.data) if len(self.data) > 50 else 50
+            xmax = len(self.plotdata) if len(self.plotdata) > 50 else 50
         else:
             xmax = int(self.xmax_control.manual_value())
             
@@ -234,12 +235,12 @@ class GraphFrame(wx.Frame):
         # the whole data set.
         # 
         if self.ymin_control.is_auto():
-            ymin = round(min(self.data), 0) - 1
+            ymin = round(min(self.plotdata), 0) - 1
         else:
             ymin = int(self.ymin_control.manual_value())
         
         if self.ymax_control.is_auto():
-            ymax = round(max(self.data), 0) + 1
+            ymax = round(max(self.plotdata), 0) + 1
         else:
             ymax = int(self.ymax_control.manual_value())
 
@@ -263,8 +264,8 @@ class GraphFrame(wx.Frame):
         pylab.setp(self.axes.get_xticklabels(), 
             visible=self.cb_xlab.IsChecked())
         
-        self.plot_data.set_xdata(np.arange(len(self.data)))
-        self.plot_data.set_ydata(np.array(self.data))
+        self.plot_data.set_xdata(np.arange(len(self.plotdata)))
+        self.plot_data.set_ydata(np.array(self.plotdata))
         
         self.canvas.draw()
     
@@ -282,6 +283,7 @@ class GraphFrame(wx.Frame):
         self.draw_plot()
     
     def on_save_plot(self, event):
+        self.WriteData()
         file_choices = "PNG (*.png)|*.png"
         
         dlg = wx.FileDialog(
@@ -296,19 +298,31 @@ class GraphFrame(wx.Frame):
             path = dlg.GetPath()
             self.canvas.print_figure(path, dpi=self.dpi)
             self.flash_status_message("Saved to %s" % path)
-    
+
+    def WriteData(self):
+        print 'Writing datastore ....'
+        f = open('output.csv', 'w')
+        for data in self.dataStore:
+            for item in data:
+                f.write(str(item)+',')
+            f.write('\n')
+        print 'Wrote datastore ..... '    
+        f.close()
+
+            
     def on_redraw_timer(self, event):
         # if paused do not add data, but still redraw the plot
         # (to respond to scale modifications, grid change, etc.)
         #
         if not self.paused:
-            self.data.append(self.datagen.next())
-        
+            self.plotdata.append(float(self.dataStore[-1][1]))
+            
         self.draw_plot()
     
     def on_exit(self, event):
         self.Destroy()
-    
+        self.WriteData()
+        
     def flash_status_message(self, msg, flash_len_ms=1500):
         self.statusbar.SetStatusText(msg)
         self.timeroff = wx.Timer(self)
