@@ -52,6 +52,10 @@ void rotateDeg(float deg, float speed);
 
 float angx = 0.0;
 
+// update sampling interval
+const long interval = 1000; // interval in microseconds
+unsigned long previousMicros = 0; //last time an update was made
+
 void setup()
 {
   // setup MPU9250 control
@@ -139,77 +143,83 @@ void setup()
 
 void loop()
 {
+  unsigned long currentMicross = micros();
   digitalWrite(LED_PIN, HIGH);
 
-  if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
-  {  
-    myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
-    myIMU.getAres();
+  //sample and dump the data to the serial bus at the desired interval
+  if(currentMicros - previousMicros >= interval){
+    previousMicros = currentMicros;
 
-    // Now we'll calculate the accleration value into actual g's
-    // This depends on scale being set
-    myIMU.ax = (float)myIMU.accelCount[0]*myIMU.aRes; // - accelBias[0];
-    myIMU.ay = (float)myIMU.accelCount[1]*myIMU.aRes; // - accelBias[1];
-    myIMU.az = (float)myIMU.accelCount[2]*myIMU.aRes; // - accelBias[2];
+    if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01){  
+      myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
+      myIMU.getAres();
+      
+      // Now we'll calculate the accleration value into actual g's
+      // This depends on scale being set
+      myIMU.ax = (float)myIMU.accelCount[0]*myIMU.aRes; // - accelBias[0];
+      myIMU.ay = (float)myIMU.accelCount[1]*myIMU.aRes; // - accelBias[1];
+      myIMU.az = (float)myIMU.accelCount[2]*myIMU.aRes; // - accelBias[2];
+      
+      myIMU.readGyroData(myIMU.gyroCount);  // Read the x/y/z adc values
+      myIMU.getGres();
+      
+      // Calculate the gyro value into actual degrees per second
+      // This depends on scale being set
+      myIMU.gx = (float)myIMU.gyroCount[0]*myIMU.gRes;
+      myIMU.gy = (float)myIMU.gyroCount[1]*myIMU.gRes;
+      myIMU.gz = (float)myIMU.gyroCount[2]*myIMU.gRes;
+      
+      myIMU.readMagData(myIMU.magCount);  // Read the x/y/z adc values
+      myIMU.getMres();
+      // User environmental x-axis correction in milliGauss, should be
+      // automatically calculated
+      myIMU.magbias[0] = +470.;
+      // User environmental x-axis correction in milliGauss TODO axis??
+      myIMU.magbias[1] = +120.;
+      // User environmental x-axis correction in milliGauss
+      myIMU.magbias[2] = +125.;
+      
+      // Calculate the magnetometer values in milliGauss
+      // Include factory calibration per data sheet and user environmental
+      // corrections
+      // Get actual magnetometer value, this depends on scale being set
+      myIMU.mx = (float)myIMU.magCount[0]*myIMU.mRes*myIMU.magCalibration[0] -
+	myIMU.magbias[0];
+      myIMU.my = (float)myIMU.magCount[1]*myIMU.mRes*myIMU.magCalibration[1] -
+	myIMU.magbias[1];
+      myIMU.mz = (float)myIMU.magCount[2]*myIMU.mRes*myIMU.magCalibration[2] -
+	myIMU.magbias[2];
+    } // if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
+    
+    myIMU.updateTime();
 
-    myIMU.readGyroData(myIMU.gyroCount);  // Read the x/y/z adc values
-    myIMU.getGres();
+    Serial.print(currentMicros/1000000.0);
+    Serial.print(',');
+    // --- gyros
+    Serial.print(myIMU.gx);
+    Serial.print(',');
+    Serial.print(myIMU.gy);
+    Serial.print(',');
+    Serial.print(myIMU.gz);
+    Serial.print(','); 
+    // --- accelerometers
+    Serial.print(myIMU.ax);
+    Serial.print(',');
+    Serial.print(myIMU.ay);
+    Serial.print(',');
+    Serial.print(myIMU.az);
+    Serial.print(',');
+    // --- magnemometers
+    //Serial.print(myIMU.mx);
+    //Serial.print(',');
+    //Serial.print(myIMU.my);
+    //Serial.print(',');
+    //Serial.print(myIMU.mz);
+    Serial.print('\n');
+  }
 
-    // Calculate the gyro value into actual degrees per second
-    // This depends on scale being set
-    myIMU.gx = (float)myIMU.gyroCount[0]*myIMU.gRes;
-    myIMU.gy = (float)myIMU.gyroCount[1]*myIMU.gRes;
-    myIMU.gz = (float)myIMU.gyroCount[2]*myIMU.gRes;
-
-    myIMU.readMagData(myIMU.magCount);  // Read the x/y/z adc values
-    myIMU.getMres();
-    // User environmental x-axis correction in milliGauss, should be
-    // automatically calculated
-    myIMU.magbias[0] = +470.;
-    // User environmental x-axis correction in milliGauss TODO axis??
-    myIMU.magbias[1] = +120.;
-    // User environmental x-axis correction in milliGauss
-    myIMU.magbias[2] = +125.;
-
-    // Calculate the magnetometer values in milliGauss
-    // Include factory calibration per data sheet and user environmental
-    // corrections
-    // Get actual magnetometer value, this depends on scale being set
-    myIMU.mx = (float)myIMU.magCount[0]*myIMU.mRes*myIMU.magCalibration[0] -
-               myIMU.magbias[0];
-    myIMU.my = (float)myIMU.magCount[1]*myIMU.mRes*myIMU.magCalibration[1] -
-               myIMU.magbias[1];
-    myIMU.mz = (float)myIMU.magCount[2]*myIMU.mRes*myIMU.magCalibration[2] -
-               myIMU.magbias[2];
-  } // if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
-
-  myIMU.updateTime();
-
-  //dump the data to the serial bus
-  Serial.print(millis()/1000.0);
-  Serial.print(',');
-  // --- gyros
-  Serial.print(myIMU.gx);
-  Serial.print(',');
-  Serial.print(myIMU.gy);
-  Serial.print(',');
-  Serial.print(myIMU.gz);
-  Serial.print(','); 
-  // --- accelerometers
-  Serial.print(myIMU.ax);
-  Serial.print(',');
-  Serial.print(myIMU.ay);
-  Serial.print(',');
-  Serial.print(myIMU.az);
-  Serial.print(',');
-  // --- magnemometers
-  //Serial.print(myIMU.mx);
-  //Serial.print(',');
-  //Serial.print(myIMU.my);
-  //Serial.print(',');
-  //Serial.print(myIMU.mz);
-  Serial.print('\n');
-
+  // change to a 1 if you want visual feedback via stepper motor and LED
+#if 0
   angStep = myIMU.gx;
   angx = angx + angStep;
   double fulldeg = int(angx/360.0)*360.0;
@@ -217,10 +227,11 @@ void loop()
 
   rotateDeg(angStep, SPEED);
 
+  // delay for blinking
   delay(waitTimePerCycle);
   digitalWrite(LED_PIN, LOW);
   delay(waitTimePerCycle);
-
+#endif
 }
 
 

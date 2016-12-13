@@ -299,10 +299,25 @@ class GraphFrame(wx.Frame):
             self.canvas.print_figure(path, dpi=self.dpi)
             self.flash_status_message("Saved to %s" % path)
 
+           
+            
     def WriteData(self):
+        print 'Interpolating datastore ....'
+
+        xAxisTo = []
+        # get first and last time value samples
+        firstTime = self.dataStore[0][0]
+        lastTime = self.dataStore[-1][0]
+
+        sampleIncrement = 0.001 # 1,000 Hz
+        for i in range(0, (int)(lastTime/sampleIncrement)):
+            xAxisTo.append((float)(i)*sampleIncrement)
+        
+        newData = interpolateVector(xAxisTo, self.dataStore)
+
         print 'Writing datastore ....'
         f = open('output.csv', 'w')
-        for data in self.dataStore:
+        for data in self.newData:
             for item in data:
                 f.write(str(item)+',')
             f.write('\n')
@@ -334,7 +349,46 @@ class GraphFrame(wx.Frame):
     
     def on_flash_status_off(self, event):
         self.statusbar.SetStatusText('')
-        
+
+# interpolates from an x,y vector pair to a new vector
+# this assumes the list is sorted on xvalue (i.e. first indx of store)
+# xAxisTo - x values to interpolate to
+# dataStoreFrom - x is the first indx, y values to interpolate from are stored next
+# return yValueTo - y values of interpolation operation
+def interpolateVector(xAxisTo, dataStoreFrom):
+    lastIndx = 0
+    interpolatedDataStore = []
+    # loop over all x values to interpolate to
+    for xvalue in xAxisTo:
+        localSet = []
+        localSet.append(xvalue)
+        # loop over all data samples in the data store
+        # starting from last value that was found (assuming ordered in time)
+        for indxlcl in range(lastIndx,len(dataStoreFrom)):
+            time = dataStoreFrom[indxlcl][0]
+            # find the first value which is larger than xvalue
+            # the next value backwards is by definition lower
+            if time > xvalue:
+                lastIndx = indxlcl-1
+                timehigher = time
+                timelower = dataStoreFrom[indxlcl-1][0]
+                lowerx = dataStoreFrom[indxlcl-1][0]
+                higherx = dataStoreFrom[indxlcl][0]
+                deltax = higherx - lowerx
+                # loop over all y values and interpolate them
+                for item in range(1, len(dataStoreFrom[indxlcl]):
+                    lowery = dataStoreFrom[indxlcl-1][item]
+                    highery = dataStoreFrom[indxlcl][item]
+                    deltay = highery - lowery
+                    slope = (deltay)/(deltax)
+                    newValue = lowery + slope*(xvalue - lowerx)
+                    localSet.append(newValue)
+                # add the interpolated set to the new store and break
+                interpolatedDataStore.append(localSet)
+                break;
+
+    return interpolatedDataStore
+                                  
 if __name__ == "__main__":
     app = wx.PySimpleApp()
     app.frame = GraphFrame()
